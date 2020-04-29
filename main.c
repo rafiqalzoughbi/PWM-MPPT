@@ -104,9 +104,11 @@ int main(void)
   double volt_bit = 0;
   double volt_new  = 0;
   double curr_new = 0;
-  double curr_bit = 0;
-  double curr_old = 0;
+  double curr_bito = 0;
+  double curr_bitn = 0;
 
+  double curr_old = 0;
+  double inc = 0;
   double pow_old = 0;
   double pow_new = 0;
   uint16_t dutyC = 0;
@@ -123,7 +125,7 @@ int main(void)
   {
 
 	 if (dutyC == 0) {
-		dutyC = 5;
+		dutyC = 40;
 		htim1.Instance->CCR1 = dutyC;
 		HAL_ADC_Start(&hadc1);
 		HAL_ADC_PollForConversion(&hadc1, 1000);
@@ -131,8 +133,21 @@ int main(void)
 		volt_old = volt_bit/4096*33;
 		HAL_ADC_Start(&hadc2);
 		HAL_ADC_PollForConversion(&hadc2, 1000);
-		curr_bit = HAL_ADC_GetValue(&hadc2);
-		curr_old = curr_bit/4096*3.3;
+		for (inc = 1; inc < 1000; inc = inc +1) {
+			curr_bitn = HAL_ADC_GetValue(&hadc2);
+			if (inc == 1){
+				curr_bito = HAL_ADC_GetValue(&hadc2);
+				curr_bitn = 0;
+
+			}
+
+			if (curr_bitn > curr_bito){
+				curr_bito = curr_bitn;
+			}
+		}
+
+
+		curr_old = curr_bito/4096*3.3;
 		pow_old = volt_old*curr_old;
 		dutyC += 1;
 		htim1.Instance->CCR1 = dutyC;
@@ -142,8 +157,18 @@ int main(void)
 		volt_new = volt_bit/4096*33;
 		HAL_ADC_Start(&hadc2);
 		HAL_ADC_PollForConversion(&hadc2, 1000);
-		curr_bit = HAL_ADC_GetValue(&hadc2);
-		curr_new = curr_bit/4096*3.3;
+		for (inc = 1; inc < 1000; inc = inc +1) {
+				curr_bitn = HAL_ADC_GetValue(&hadc2);
+				if (inc == 1){
+					curr_bito = HAL_ADC_GetValue(&hadc2);
+					curr_bitn = 0;
+				}
+
+				if (curr_bitn > curr_bito){
+					curr_bito = curr_bitn;
+				}
+			}
+		curr_new = curr_bito/4096*3.3;
 		pow_new = volt_old*curr_old;
 
 
@@ -155,24 +180,35 @@ int main(void)
 		volt_new = volt_bit/4096*33;
 		HAL_ADC_Start(&hadc2);
 		HAL_ADC_PollForConversion(&hadc2, 1000);
-		curr_bit = HAL_ADC_GetValue(&hadc2);
-		curr_new = curr_bit/4096*3.3;
+		for (inc = 1; inc < 1000; inc = inc +1) {
+				curr_bitn = HAL_ADC_GetValue(&hadc2);
+				if (inc == 1){
+					curr_bito = HAL_ADC_GetValue(&hadc2);
+					curr_bitn = 0;
+				}
+
+				if (curr_bitn > curr_bito){
+					curr_bito = curr_bitn;
+				}
+			}
+		curr_new = curr_bito/4096*3.3;
 		pow_new = volt_old*curr_old;
+
 	 }
      if (pow_new > pow_old){
-        if(volt_new > volt_old && curr_new < .3){
-        	//dutyC += 1;
+        if(volt_new >= volt_old && dutyC <= 100){
+        	dutyC += 1;
         }
         else {
-        	//dutyC -= 1;
+        	dutyC -= 1;
         }
      }
      if (pow_new < pow_old){
-    	 if (volt_new < volt_old && curr_new < .3){
-    		 //dutyC += 1;
+    	 if (volt_new <= volt_old && dutyC <= 100){
+    		dutyC += 1;
     	 }
     	 else {
-    		//dutyC -= 1;
+    		dutyC -= 1;
     	 }
      }
      htim1.Instance->CCR1 = dutyC;
@@ -202,7 +238,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -211,12 +249,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -341,7 +379,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 50;
+  htim1.Init.Period = 175;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
